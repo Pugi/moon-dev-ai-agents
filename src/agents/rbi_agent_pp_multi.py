@@ -65,7 +65,7 @@ print("✅ Environment variables loaded")
 
 # Add config values directly to avoid import issues
 AI_TEMPERATURE = 0.7
-AI_MAX_TOKENS = 4000
+AI_MAX_TOKENS = 16000  # 🌙 Moon Dev: Increased for complete backtest code generation with execution block!
 
 # Import model factory with proper path handling
 import sys
@@ -98,34 +98,51 @@ THREAD_COLORS = {
 console_lock = Lock()
 api_lock = Lock()
 file_lock = Lock()
+date_lock = Lock()  # 🌙 Moon Dev: Lock for date checking/updating
 
 # Rate limiter
 rate_limiter = Semaphore(MAX_PARALLEL_THREADS)
 
-# Model Configurations (same as v3)
+# 🌙 Moon Dev's Model Configurations
+# Available types: "claude", "openai", "deepseek", "groq", "gemini", "xai", "ollama", "openrouter"
+#
+# OpenRouter Models (just set type="openrouter" and pick any model below):
+# - Gemini: google/gemini-2.5-pro, google/gemini-2.5-flash
+# - Qwen: qwen/qwen3-vl-32b-instruct, qwen/qwen3-max
+# - DeepSeek: deepseek/deepseek-r1-0528
+# - OpenAI: openai/gpt-4.5-preview, openai/gpt-5, openai/gpt-5-mini, openai/gpt-5-nano
+# - Claude: anthropic/claude-sonnet-4.5, anthropic/claude-haiku-4.5, anthropic/claude-opus-4.1
+# - GLM: z-ai/glm-4.6
+# See src/models/openrouter_model.py for ALL available models!
+
+# 🧠 RESEARCH: Gemini 2.5 Flash (fast strategy analysis)
 RESEARCH_CONFIG = {
-    "type": "xai",
-    "name": "grok-4-fast-reasoning"
+    "type": "openrouter",
+    "name": "google/gemini-2.5-flash"
 }
 
+# 💻 BACKTEST CODE GEN: OpenRouter Gemini 2.5 Pro (testing Gemini through OpenRouter!)
 BACKTEST_CONFIG = {
-    "type": "xai",
-    "name": "grok-4-fast-reasoning"
+    "type": "openrouter",
+    "name": "google/gemini-2.5-pro"
 }
 
+# 🐛 DEBUGGING: Qwen 3 VL 32B (vision & language for code debugging)
 DEBUG_CONFIG = {
-    "type": "xai",
-    "name": "grok-4-fast-reasoning"
+    "type": "openrouter",
+    "name": "qwen/qwen3-vl-32b-instruct"
 }
 
+# 📦 PACKAGE CHECK: GLM 4.6 (Zhipu AI)
 PACKAGE_CONFIG = {
-    "type": "xai",
-    "name": "grok-4-fast-reasoning"
+    "type": "openrouter",
+    "name": "z-ai/glm-4.6"
 }
 
+# 🚀 OPTIMIZATION: GLM 4.6 (Zhipu AI for strategy optimization)
 OPTIMIZE_CONFIG = {
-    "type": "xai",
-    "name": "grok-4-fast-reasoning"
+    "type": "openrouter",
+    "name": "z-ai/glm-4.6"
 }
 
 # 🎯 PROFIT TARGET CONFIGURATION
@@ -139,30 +156,66 @@ EXECUTION_TIMEOUT = 300  # 5 minutes
 # DeepSeek Configuration
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
-# Get today's date for organizing outputs
-TODAY_DATE = datetime.now().strftime("%m_%d_%Y")
+# 🌙 Moon Dev: Date tracking for always-on mode - will update when date changes!
+CURRENT_DATE = datetime.now().strftime("%m_%d_%Y")
 
 # Update data directory paths - Parallel Multi-Data version uses its own folder
 PROJECT_ROOT = Path(__file__).parent.parent
 DATA_DIR = PROJECT_ROOT / "data/rbi_pp_multi"
-TODAY_DIR = DATA_DIR / TODAY_DATE
-RESEARCH_DIR = TODAY_DIR / "research"
-BACKTEST_DIR = TODAY_DIR / "backtests"
-PACKAGE_DIR = TODAY_DIR / "backtests_package"
-WORKING_BACKTEST_DIR = TODAY_DIR / "backtests_working"  # Moon Dev's working iterations!
-FINAL_BACKTEST_DIR = TODAY_DIR / "backtests_final"
-OPTIMIZATION_DIR = TODAY_DIR / "backtests_optimized"
-CHARTS_DIR = TODAY_DIR / "charts"
-EXECUTION_DIR = TODAY_DIR / "execution_results"
+
+# 🌙 Moon Dev: These will be updated dynamically when date changes
+TODAY_DIR = None
+RESEARCH_DIR = None
+BACKTEST_DIR = None
+PACKAGE_DIR = None
+WORKING_BACKTEST_DIR = None
+FINAL_BACKTEST_DIR = None
+OPTIMIZATION_DIR = None
+CHARTS_DIR = None
+EXECUTION_DIR = None
+
 PROCESSED_IDEAS_LOG = DATA_DIR / "processed_ideas.log"
 STATS_CSV = DATA_DIR / "backtest_stats.csv"  # Moon Dev's stats tracker!
-
 IDEAS_FILE = DATA_DIR / "ideas.txt"
 
-# Create main directories if they don't exist
-for dir in [DATA_DIR, TODAY_DIR, RESEARCH_DIR, BACKTEST_DIR, PACKAGE_DIR,
-            WORKING_BACKTEST_DIR, FINAL_BACKTEST_DIR, OPTIMIZATION_DIR, CHARTS_DIR, EXECUTION_DIR]:
-    dir.mkdir(parents=True, exist_ok=True)
+def update_date_folders():
+    """
+    🌙 Moon Dev's Date Folder Updater!
+    Checks if date has changed and updates all folder paths accordingly.
+    Thread-safe and works in always-on mode! 🚀
+    """
+    global CURRENT_DATE, TODAY_DIR, RESEARCH_DIR, BACKTEST_DIR, PACKAGE_DIR
+    global WORKING_BACKTEST_DIR, FINAL_BACKTEST_DIR, OPTIMIZATION_DIR, CHARTS_DIR, EXECUTION_DIR
+
+    with date_lock:
+        new_date = datetime.now().strftime("%m_%d_%Y")
+
+        # Check if date has changed
+        if new_date != CURRENT_DATE:
+            with console_lock:
+                cprint(f"\n🌅 NEW DAY DETECTED! {CURRENT_DATE} → {new_date}", "cyan", attrs=['bold'])
+                cprint(f"📁 Creating new folder structure for {new_date}...\n", "yellow")
+
+            CURRENT_DATE = new_date
+
+        # Update all directory paths (whether date changed or first run)
+        TODAY_DIR = DATA_DIR / CURRENT_DATE
+        RESEARCH_DIR = TODAY_DIR / "research"
+        BACKTEST_DIR = TODAY_DIR / "backtests"
+        PACKAGE_DIR = TODAY_DIR / "backtests_package"
+        WORKING_BACKTEST_DIR = TODAY_DIR / "backtests_working"
+        FINAL_BACKTEST_DIR = TODAY_DIR / "backtests_final"
+        OPTIMIZATION_DIR = TODAY_DIR / "backtests_optimized"
+        CHARTS_DIR = TODAY_DIR / "charts"
+        EXECUTION_DIR = TODAY_DIR / "execution_results"
+
+        # Create directories if they don't exist
+        for dir in [DATA_DIR, TODAY_DIR, RESEARCH_DIR, BACKTEST_DIR, PACKAGE_DIR,
+                    WORKING_BACKTEST_DIR, FINAL_BACKTEST_DIR, OPTIMIZATION_DIR, CHARTS_DIR, EXECUTION_DIR]:
+            dir.mkdir(parents=True, exist_ok=True)
+
+# 🌙 Moon Dev: Initialize folders on startup!
+update_date_folders()
 
 # ============================================
 # 🎨 THREAD-SAFE PRINTING
@@ -250,7 +303,14 @@ Remember: The name must be UNIQUE and SPECIFIC to this strategy's approach!
 """
 
 BACKTEST_PROMPT = """
-You are Moon Dev's Backtest AI 🌙 ONLY SEND BACK CODE, NO OTHER TEXT.
+You are Moon Dev's Backtest AI 🌙
+
+🚨 CRITICAL: Your code MUST have TWO parts:
+PART 1: Strategy class definition
+PART 2: if __name__ == "__main__" block (SEE TEMPLATE BELOW - MANDATORY!)
+
+If you don't include the if __name__ == "__main__" block with stats printing, the code will FAIL!
+
 Create a backtesting.py implementation for the strategy.
 USE BACKTESTING.PY
 Include:
@@ -315,8 +375,12 @@ datetime, open, high, low, close, volume,
 
 Always add plenty of Moon Dev themed debug prints with emojis to make debugging easier! 🌙 ✨ 🚀
 
-MULTI-DATA TESTING REQUIREMENT:
-At the VERY END of your code (after all strategy definitions), you MUST add this EXACT block:
+🚨🚨🚨 MANDATORY EXECUTION BLOCK - DO NOT SKIP THIS! 🚨🚨🚨
+
+YOU ABSOLUTELY MUST INCLUDE THIS BLOCK AT THE END OF YOUR CODE!
+WITHOUT THIS BLOCK, THE STATS CANNOT BE PARSED AND THE BACKTEST WILL FAIL!
+
+Copy this EXACT template and replace YourStrategyClassName with your actual class name:
 
 ```python
 # 🌙 MOON DEV'S MULTI-DATA TESTING FRAMEWORK 🚀
@@ -324,8 +388,27 @@ At the VERY END of your code (after all strategy definitions), you MUST add this
 if __name__ == "__main__":
     import sys
     import os
+    from backtesting import Backtest
+    import pandas as pd
 
-    # Import the multi-data tester from Moon Dev's trading bots repo
+    # FIRST: Run standard backtest and print stats (REQUIRED for parsing!)
+    print("\\n🌙 Running initial backtest for stats extraction...")
+    data = pd.read_csv('/Users/md/Dropbox/dev/github/moon-dev-ai-agents-for-trading/src/data/rbi/BTC-USD-15m.csv')
+    data['datetime'] = pd.to_datetime(data['datetime'])
+    data = data.set_index('datetime')
+    data.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+
+    bt = Backtest(data, YourStrategyClassName, cash=1_000_000, commission=0.002)
+    stats = bt.run()
+
+    # 🌙 CRITICAL: Print full stats for Moon Dev's parser!
+    print("\\n" + "="*80)
+    print("📊 BACKTEST STATISTICS (Moon Dev's Format)")
+    print("="*80)
+    print(stats)
+    print("="*80 + "\\n")
+
+    # THEN: Run multi-data testing
     sys.path.append('/Users/md/Dropbox/dev/github/moon-dev-trading-bots/backtests')
     from multi_data_tester import test_on_all_data
 
@@ -347,6 +430,15 @@ if __name__ == "__main__":
 
 IMPORTANT: Replace 'YourStrategyClassName' with your actual strategy class name!
 IMPORTANT: Replace 'YourStrategyName' with a descriptive name for the CSV output!
+
+🚨 FINAL REMINDER 🚨
+Your response MUST include:
+1. Import statements
+2. Strategy class (with init() and next() methods)
+3. The if __name__ == "__main__" block shown above (MANDATORY!)
+
+Do NOT send ONLY the strategy class. You MUST include the execution block!
+ONLY SEND BACK CODE, NO OTHER TEXT.
 
 FOR THE PYTHON BACKTESTING LIBRARY USE BACKTESTING.PY AND SEND BACK ONLY THE CODE, NO OTHER TEXT.
 ONLY SEND BACK CODE, NO OTHER TEXT.
@@ -913,13 +1005,28 @@ def clean_model_output(output, content_type="text"):
     if content_type == "code" and "```" in cleaned_output:
         try:
             import re
+            # Try to extract code blocks with closing ```
             code_blocks = re.findall(r'```python\n(.*?)\n```', cleaned_output, re.DOTALL)
             if not code_blocks:
                 code_blocks = re.findall(r'```(?:python)?\n(.*?)\n```', cleaned_output, re.DOTALL)
-            if code_blocks:
+
+            # If no complete blocks found, try extracting from opening fence to end
+            if not code_blocks:
+                # Handle case where code starts with ```python but no closing ```
+                match = re.search(r'```(?:python)?\s*\n(.*)', cleaned_output, re.DOTALL)
+                if match:
+                    cleaned_output = match.group(1).strip()
+                    # Remove any trailing ``` if present
+                    if cleaned_output.endswith('```'):
+                        cleaned_output = cleaned_output[:-3].strip()
+            else:
                 cleaned_output = "\n\n".join(code_blocks)
         except Exception as e:
             thread_print(f"❌ Error extracting code: {str(e)}", 0, "red")
+
+    # 🌙 Moon Dev: Final cleanup - strip any remaining markdown fences
+    if content_type == "code":
+        cleaned_output = cleaned_output.replace('```python', '').replace('```', '').strip()
 
     return cleaned_output
 
@@ -1077,6 +1184,9 @@ def process_trading_idea_parallel(idea: str, thread_id: int) -> dict:
     This is the worker function for each parallel thread
     """
     try:
+        # 🌙 Moon Dev: Check if date has changed and update folders!
+        update_date_folders()
+
         thread_print(f"🚀 Starting processing", thread_id, attrs=['bold'])
 
         # Phase 1: Research
@@ -1430,7 +1540,7 @@ def main(ideas_file_path=None, run_name=None):
     cprint(f"🌟 Moon Dev's RBI AI v3.0 PARALLEL PROCESSOR + MULTI-DATA 🚀", "cyan", attrs=['bold'])
     cprint(f"{'='*60}", "cyan", attrs=['bold'])
 
-    cprint(f"\n📅 Date: {TODAY_DATE}", "magenta")
+    cprint(f"\n📅 Date: {CURRENT_DATE}", "magenta")
     cprint(f"🎯 Target Return: {TARGET_RETURN}%", "green", attrs=['bold'])
     cprint(f"🔀 Max Parallel Threads: {MAX_PARALLEL_THREADS}", "yellow", attrs=['bold'])
     cprint(f"🐍 Conda env: {CONDA_ENV}", "cyan")
@@ -1488,6 +1598,9 @@ def main(ideas_file_path=None, run_name=None):
     try:
         while True:
             time.sleep(5)  # Status update every 5 seconds
+
+            # 🌙 Moon Dev: Check for date changes periodically (even when idle!)
+            update_date_folders()
 
             with console_lock:
                 if stats['active'] > 0 or not idea_queue.empty():
